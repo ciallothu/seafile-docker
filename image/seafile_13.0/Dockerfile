@@ -2,6 +2,12 @@ FROM ubuntu:24.04
 ARG server_version=
 ENV SEAFILE_SERVER=seafile-server SEAFILE_VERSION=$server_version
 
+RUN printf '%s\n' \
+    'Acquire::Retries "10";' \
+    'Acquire::http::Timeout "30";' \
+    'Acquire::https::Timeout "30";' \
+    > /etc/apt/apt.conf.d/80-retries
+
 # https://github.com/phusion/baseimage-docker
 COPY base_scripts /bd_build
 RUN /bd_build/prepare.sh && \
