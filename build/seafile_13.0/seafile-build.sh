@@ -12,6 +12,11 @@ tag=v$1-server
 libevhtp_tag=1.1.6
 libsearpc_tag=v3.3-latest
 
+seafile_server_repo=${SEAFILE_SERVER_REPO:-https://github.com/haiwen/seafile-server.git}
+seafile_server_ref=${SEAFILE_SERVER_REF:-${tag}}
+seahub_repo=${SEAHUB_REPO:-https://github.com/haiwen/seahub.git}
+seahub_ref=${SEAHUB_REF:-${tag}}
+
 SCRIPT=$(readlink -f "$0")
 current_dir=$(dirname "${SCRIPT}")
 code_path=$current_dir/src
@@ -111,7 +116,7 @@ function clone_code() {
     fi
 
     if [[ ! -e seafile-server ]]; then
-        git clone https://github.com/haiwen/seafile-server.git
+        git clone ${seafile_server_repo}
     fi
 
     if [[ ! -e seafobj ]]; then
@@ -127,7 +132,7 @@ function clone_code() {
     fi
 
     if [[ ! -e seahub ]]; then
-        git clone https://github.com/haiwen/seahub.git
+        git clone ${seahub_repo}
     fi
 }
 
@@ -157,8 +162,8 @@ function fetch() {
     cd ${code_path}/seafile-server
     git reset --hard
     git clean -xf
-    git fetch origin tag ${tag}
-    git checkout ${tag}
+    git fetch origin ${seafile_server_ref}
+    git checkout --detach FETCH_HEAD
     cd ${code_path}
 
     echo "Fetch seafobj"
@@ -189,8 +194,8 @@ function fetch() {
     cd ${code_path}/seahub
     git reset --hard
     git clean -xf
-    git fetch origin tag ${tag}
-    git checkout ${tag}
+    git fetch origin ${seahub_ref}
+    git checkout --detach FETCH_HEAD
     cd ${code_path}
 }
 

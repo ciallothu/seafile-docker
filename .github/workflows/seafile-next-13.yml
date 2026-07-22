@@ -1,0 +1,87 @@
+name: Seafile Next 13 image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'seafile-docker-next'
+    tags:
+      - 'v13.0.25-next.*'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  SERVER_VERSION: '13.0.25'
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/seafile-mc
+
+jobs:
+  build-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Docker build source
+        uses: actions/checkout@v4
+
+      - name: Build Seafile from forked source
+        env:
+          SEAFILE_SERVER_REPO: https://github.com/${{ github.repository_owner }}/seafile-server.git
+          SEAFILE_SERVER_REF: 7d42eca3c511a30cc0e7ceab57ef7d1a188ba1f4
+          SEAHUB_REPO: https://github.com/${{ github.repository_owner }}/seahub.git
+          SEAHUB_REF: b57c45c7ccf05013fe5eb8444c2b3a422972e28e
+        run: |
+          sudo -E build/seafile_13.0/seafile-build.sh "$SERVER_VERSION"
+
+      - name: Verify SITE_ROOT-aware source is packaged
+        run: |
+          settings="build/seafile_13.0/seafile-server-${SERVER_VERSION}/seahub/seahub/settings.py"
+          grep -F "FILE_SERVER_ROOT = host_url + SITE_ROOT.rstrip('/') + '/seafhttp'" "$settings"
+
+      - name: Assemble Docker build context
+        run: |
+          context="$RUNNER_TEMP/seafile-image"
+          mkdir -p "$context"
+          cp -a base_scripts "$context/base_scripts"
+          cp -a scripts/scripts_13.0 "$context/scripts_13.0"
+          cp -a services "$context/services"
+          cp -a "build/seafile_13.0/seafile-server-${SERVER_VERSION}" "$context/"
+          cp image/seafile_13.0/Dockerfile "$context/Dockerfile"
+          echo "BUILD_CONTEXT=$context" >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.BUILD_CONTEXT }}
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            server_version=${{ env.SERVER_VERSION }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.SERVER_VERSION }}-next.1
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.SERVER_VERSION }}-next.1
+
+      - name: Record immutable image reference
+        run: |
+          printf '%s@%s\n' "$IMAGE_NAME" '${{ steps.build.outputs.digest }}' > image-digest.txt
+
+      - name: Upload image metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: seafile-next-image-metadata
+          path: image-digest.txt
+          if-no-files-found: error
