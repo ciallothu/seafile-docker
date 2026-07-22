@@ -79,13 +79,14 @@ jobs:
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGE_OWNER: ${{ github.repository_owner }}
         run: |
           current_tag="${SERVER_VERSION}-next.1"
           version_ids="$(gh api --paginate \
-            "/user/packages/container/seafile-mc/versions?per_page=100" \
+            "/users/${PACKAGE_OWNER}/packages/container/seafile-mc/versions?per_page=100" \
             --jq ".[] | select(((.metadata.container.tags // []) | index(\"${current_tag}\")) == null) | .id")"
           for version_id in $version_ids; do
-            gh api --method DELETE "/user/packages/container/seafile-mc/versions/${version_id}"
+            gh api --method DELETE "/users/${PACKAGE_OWNER}/packages/container/seafile-mc/versions/${version_id}"
           done
 
       - name: Record immutable image reference
