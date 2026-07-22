@@ -62,12 +62,13 @@ RUN mkdir -p /etc/ldap/ && echo "TLS_REQCERT     allow" >> /etc/ldap/ldap.conf &
     mkdir -p /etc/my_init.d && \
     rm -f /etc/my_init.d/* && \
     cp /scripts/create_data_links.sh /etc/my_init.d/01_create_data_links.sh && \
+    cp /scripts/render_site_root_nginx.sh /etc/my_init.d/02_render_site_root_nginx.sh && \
     mkdir -p /etc/service/nginx && \
     mkdir -p /etc/nginx/sites-enabled && mkdir -p /etc/nginx/sites-available && \
     rm -f /etc/nginx/sites-enabled/* /etc/nginx/conf.d/* && \
     mv /services/nginx.conf /etc/nginx/nginx.conf && \
     mv /services/nginx.sh /etc/service/nginx/run && \
-    mv /services/seafile.nginx.conf /etc/nginx/sites-enabled/seafile.nginx.conf
+    cp /services/seafile.nginx.conf /etc/nginx/sites-enabled/seafile.nginx.conf
 ENV MARIADB_TLS_DISABLE_PEER_VERIFICATION=1
 
 # Seafile

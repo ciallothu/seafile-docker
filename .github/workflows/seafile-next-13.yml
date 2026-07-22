@@ -3,10 +3,8 @@ name: Seafile Next 13 image
 on:
   workflow_dispatch:
   push:
-    branches:
-      - 'seafile-docker-next'
     tags:
-      - 'v13.0.25-next.*'
+      - 'v13.0.25-next.2'
 
 permissions:
   contents: read
@@ -14,6 +12,7 @@ permissions:
 
 env:
   SERVER_VERSION: '13.0.25'
+  IMAGE_VERSION: '13.0.25-next.2'
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/seafile-mc
 
 jobs:
@@ -49,6 +48,30 @@ jobs:
           cp image/seafile_13.0/Dockerfile "$context/Dockerfile"
           echo "BUILD_CONTEXT=$context" >> "$GITHUB_ENV"
 
+      - name: Verify SITE_ROOT Nginx rendering
+        run: |
+          rendered="$RUNNER_TEMP/seafile-site-root.nginx.conf"
+          root_rendered="$RUNNER_TEMP/seafile-root.nginx.conf"
+          SITE_ROOT=/seafile/ \
+          SEAFILE_SERVER_PROTOCOL=https \
+          NGINX_TEMPLATE_PATH="$PWD/services/seafile-site-root.nginx.conf.template" \
+          NGINX_DEFAULT_PATH="$PWD/services/seafile.nginx.conf" \
+          NGINX_OUTPUT_PATH="$rendered" \
+          NGINX_SKIP_CONFIG_TEST=true \
+            bash scripts/scripts_13.0/render_site_root_nginx.sh
+          grep -F 'location ^~ /seafile/seafhttp' "$rendered"
+          grep -F 'rewrite ^/seafile/seafhttp(.*)$ $1 break;' "$rendered"
+          grep -F 'location / {' "$rendered"
+          ! grep -F 'location /seafhttp' "$rendered"
+
+          SITE_ROOT=/ \
+          NGINX_TEMPLATE_PATH="$PWD/services/seafile-site-root.nginx.conf.template" \
+          NGINX_DEFAULT_PATH="$PWD/services/seafile.nginx.conf" \
+          NGINX_OUTPUT_PATH="$root_rendered" \
+          NGINX_SKIP_CONFIG_TEST=true \
+            bash scripts/scripts_13.0/render_site_root_nginx.sh
+          cmp "$PWD/services/seafile.nginx.conf" "$root_rendered"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -66,14 +89,18 @@ jobs:
           context: ${{ env.BUILD_CONTEXT }}
           platforms: linux/amd64
           push: ${{ github.ref_type == 'tag' }}
+          cache-from: |
+            type=registry,ref=${{ env.IMAGE_NAME }}:13.0.25-next.1
+            type=gha,scope=seafile-next-13
+          cache-to: type=gha,mode=max,scope=seafile-next-13
           build-args: |
             server_version=${{ env.SERVER_VERSION }}
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.SERVER_VERSION }}-next.1
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ env.SERVER_VERSION }}-next.1
+            org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
 
       - name: Record immutable image reference
         run: |
