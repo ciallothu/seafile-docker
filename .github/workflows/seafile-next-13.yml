@@ -65,7 +65,7 @@ jobs:
         with:
           context: ${{ env.BUILD_CONTEXT }}
           platforms: linux/amd64
-          push: true
+          push: ${{ github.ref_type == 'tag' }}
           build-args: |
             server_version=${{ env.SERVER_VERSION }}
           tags: |
