@@ -1,10 +1,10 @@
-name: Seafile Next 13 image
+name: Build and publish seafile-next 13 image
 
 on:
   workflow_dispatch:
   push:
     tags:
-      - 'v13.0.25-next.2'
+      - 'v13.0.25-next.3'
 
 permissions:
   contents: read
@@ -12,8 +12,10 @@ permissions:
 
 env:
   SERVER_VERSION: '13.0.25'
-  IMAGE_VERSION: '13.0.25-next.2'
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/seafile-mc
+  IMAGE_VERSION: '13.0.25-next.3'
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/seafile-next
+  # Transitional alias for deployments that still reference the old package path.
+  LEGACY_IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/seafile-mc
 
 jobs:
   build-image:
@@ -23,7 +25,7 @@ jobs:
       - name: Checkout Docker build source
         uses: actions/checkout@v4
 
-      - name: Build Seafile from forked source
+      - name: Build seafile-next from forked source
         env:
           SEAFILE_SERVER_REPO: https://github.com/${{ github.repository_owner }}/seafile-server.git
           SEAFILE_SERVER_REF: 7d42eca3c511a30cc0e7ceab57ef7d1a188ba1f4
@@ -90,14 +92,17 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.ref_type == 'tag' }}
           cache-from: |
-            type=registry,ref=${{ env.IMAGE_NAME }}:13.0.25-next.1
+            type=registry,ref=${{ env.LEGACY_IMAGE_NAME }}:13.0.25-next.2
             type=gha,scope=seafile-next-13
           cache-to: type=gha,mode=max,scope=seafile-next-13
           build-args: |
             server_version=${{ env.SERVER_VERSION }}
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
+            ${{ env.LEGACY_IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
           labels: |
+            org.opencontainers.image.title=seafile-next
+            org.opencontainers.image.description=seafile-next server image
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.IMAGE_VERSION }}
